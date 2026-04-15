@@ -1,0 +1,22 @@
+/* Standard WP Admin resets for the app container */
+#qa-checklist-app {
+    margin-left: -20px; /* Counteract WP admin padding */
+    min-height: calc(100vh - 32px);
+    background: #f8fafc;
+}
+
+#wpcontent {
+    background: #f8fafc;
+    padding: 0;
+}
+
+/* Custom transitions and glassmorphism helpers */
+.glass {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.status-badge {
+    @apply px-2.5 py-0.5 rounded-full text-xs font-medium uppercase tracking-wider;
+}
