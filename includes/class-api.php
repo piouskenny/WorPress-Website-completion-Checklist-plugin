@@ -190,7 +190,10 @@ class QA_Checklist_API {
 					admin_url( 'admin.php?page=qa-checklist' )
 				);
 				
-				wp_mail( $to, $subject, $message );
+				$sent = wp_mail( $to, $subject, $message );
+				if ( ! $sent ) {
+					error_log( 'QA Checklist Error: Completion email failed to send to ' . implode( ', ', $to ) );
+				}
 			}
 		}
 

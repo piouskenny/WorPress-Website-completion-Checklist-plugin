@@ -15,6 +15,7 @@ function qa_checklist_get_default_items() {
 			'Content validation (no dummy/AI errors)',
 			'Image validation (relevance, not excessive AI)',
 			'Mobile responsiveness',
+			'Company email accuracy',
 		),
 		'woocommerce' => array(
 			'Shop accessibility (public)',

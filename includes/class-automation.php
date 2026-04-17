@@ -140,6 +140,14 @@ class QA_Checklist_Automation {
 						)
 					);
 					break;
+
+				case 'Company email accuracy':
+					$res = $results['email'];
+					$update = array(
+						'status'  => $res['found'] ? 'passed' : 'failed',
+						'comment' => $res['found'] ? "Found expected email: {$res['target']}" : "Expected email {$res['target']} MISSING on site."
+					);
+					break;
 			}
 
 			// Custom check for the email (not a standard label, but maybe we add it or map to CTA?)
