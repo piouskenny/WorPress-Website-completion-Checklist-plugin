@@ -1,22 +1,82 @@
-/* Standard WP Admin resets for the app container */
+/* Modern Clean UI with Soft Shadows */
+
+:root {
+    --app-bg: #fdfdfd;
+    --card-bg: #ffffff;
+    --glass-border: rgba(0, 0, 0, 0.05);
+    --shadow-soft: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
+    --shadow-strong: 0 20px 60px -15px rgba(0, 0, 0, 0.12);
+}
+
 #qa-checklist-app {
-    margin-left: -20px; /* Counteract WP admin padding */
-    min-height: calc(100vh - 32px);
-    background: #f8fafc;
+    margin-left: -20px;
+    min-height: 100vh;
+    background: var(--app-bg);
+    position: relative;
+    overflow-x: hidden;
 }
 
 #wpcontent {
-    background: #f8fafc;
+    background: var(--app-bg);
     padding: 0;
 }
 
-/* Custom transitions and glassmorphism helpers */
-.glass {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
+/* Glass & Card Overhaul */
+.glass-card {
+    background: var(--card-bg);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-soft);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+.glass-card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-strong);
+}
+
+.glass-item {
+    background: #f8fafc;
+    border: 1px solid rgba(0, 0, 0, 0.03);
+    transition: all 0.3s ease;
+}
+
+.glass-item:hover {
+    background: #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Animations */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.animate-fade-in {
+    animation: fadeInUp 0.6s ease-out forwards;
+}
+
+/* Custom Scrollbar */
+#qa-checklist-app::-webkit-scrollbar {
+    width: 6px;
+}
+#qa-checklist-app::-webkit-scrollbar-track {
+    background: transparent;
+}
+#qa-checklist-app::-webkit-scrollbar-thumb {
+    background: #e2e8f0;
+    border-radius: 10px;
+}
+#qa-checklist-app::-webkit-scrollbar-thumb:hover {
+    background: #cbd5e1;
+}
+
+/* Status Badge refinement */
 .status-badge {
-    @apply px-2.5 py-0.5 rounded-full text-xs font-medium uppercase tracking-wider;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
 }

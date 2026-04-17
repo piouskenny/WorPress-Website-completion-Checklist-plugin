@@ -16,6 +16,7 @@ function qa_checklist_get_default_items() {
 			'Image validation (relevance, not excessive AI)',
 			'Mobile responsiveness',
 			'Company email accuracy',
+			'Logo presence check',
 		),
 		'woocommerce' => array(
 			'Shop accessibility (public)',
@@ -23,6 +24,7 @@ function qa_checklist_get_default_items() {
 			'Pricing accuracy',
 			'Checkout functionality',
 			'Payment configuration',
+			'Currency configuration check',
 		),
 		'forms' => array(
 			'Form submission success',

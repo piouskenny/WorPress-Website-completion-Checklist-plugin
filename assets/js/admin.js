@@ -117,32 +117,45 @@
     function renderDashboard() {
         if (state.projects.length === 0) {
             ui.projectsGrid.innerHTML = `
-                <div class="col-span-full py-20 flex flex-col items-center justify-center bg-white rounded-2xl border-2 border-dashed border-slate-200">
-                    <p class="text-slate-500 mb-4">No projects found. Create your first one!</p>
+                <div class="col-span-full py-20 flex flex-col items-center justify-center glass-card rounded-3xl border-0 animate-fade-in">
+                    <div class="bg-indigo-100 p-4 rounded-full mb-4">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <p class="text-indigo-900 font-bold text-xl mb-1">No Projects Found</p>
+                    <p class="text-indigo-800/60 font-medium">Create your first QA pipeline to get started.</p>
                 </div>
             `;
             return;
         }
 
-        ui.projectsGrid.innerHTML = state.projects.map(p => {
+        ui.projectsGrid.innerHTML = state.projects.map((p, index) => {
             const statusClass = ui.statusColors[p.status] || 'bg-slate-100';
             return `
-                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-shadow cursor-pointer" onclick="handleProjectClick(${p.id})">
-                    <div class="flex justify-between items-start mb-4">
-                        <h3 class="font-bold text-slate-800 text-lg">${p.name}</h3>
-                        <span class="px-2 py-1 rounded text-[10px] font-bold uppercase ${statusClass}">${p.status.replace('_', ' ')}</span>
+                <div class="glass-card p-8 rounded-3xl border-0 animate-fade-in cursor-pointer relative overflow-hidden group" 
+                     style="animation-delay: ${index * 100}ms"
+                     onclick="handleProjectClick(${p.id})">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-full -mr-16 -mt-16 group-hover:scale-150 transition-transform duration-700"></div>
+                    <div class="flex justify-between items-start mb-6 relative">
+                        <h3 class="font-bold text-indigo-950 text-2xl tracking-tight">${p.name}</h3>
+                        <span class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${statusClass} status-badge">${p.status.replace('_', ' ')}</span>
                     </div>
-                    <div class="space-y-3">
-                        <div class="flex items-center gap-2 text-sm text-slate-500">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                            </svg>
+                    <div class="space-y-4 relative">
+                        <div class="flex items-center gap-3 text-sm text-indigo-900/60 font-medium">
+                            <div class="bg-indigo-50 p-1.5 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                </svg>
+                            </div>
                             ${p.user_name}
                         </div>
-                        <div class="flex items-center gap-2 text-sm text-slate-500">
-                             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
+                        <div class="flex items-center gap-3 text-sm text-indigo-900/60 font-medium">
+                            <div class="bg-indigo-50 p-1.5 rounded-lg">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-indigo-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
                             Updated: ${new Date(p.updated_at).toLocaleDateString()}
                         </div>
                     </div>
@@ -172,43 +185,65 @@
             core: 'Core Checklist',
             woocommerce: 'WooCommerce',
             forms: 'Forms',
-            seo: 'SEO'
+            seo: 'SEO Analysis'
         };
 
         ui.projectContent.innerHTML = `
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div class="lg:col-span-2 space-y-6">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-8 pb-12 animate-fade-in">
+                <div class="lg:col-span-3 space-y-8">
                     ${Object.entries(itemsBySection).map(([section, items]) => `
-                        <div class="bg-white rounded-xl shadow-sm border border-slate-100 overflow-hidden">
-                            <div class="bg-slate-50 px-6 py-3 border-b border-slate-100">
-                                <h3 class="font-bold text-slate-700">${sectionLabels[section]}</h3>
+                        <div class="glass-card rounded-3xl border-0 overflow-hidden shadow-2xl">
+                            <div class="bg-indigo-900/5 px-8 py-5 border-b border-indigo-900/5">
+                                <h3 class="font-bold text-indigo-950 text-xl tracking-tight">${sectionLabels[section]}</h3>
                             </div>
-                            <div class="divide-y divide-slate-100">
+                            <div class="divide-y divide-indigo-900/5">
                                 ${items.map(item => `
-                                    <div class="p-4 flex items-start gap-4 hover:bg-slate-50/50 transition-colors">
-                                        <div class="flex flex-col gap-2 pt-1">
+                                    <div class="p-6 flex items-start gap-6 hover:bg-white/40 transition-all duration-300">
+                                        <div class="flex flex-col gap-3 pt-1">
                                             <button 
                                                 onclick="toggleItemStatus(${item.id}, 'pass')" 
-                                                class="w-6 h-6 rounded flex items-center justify-center transition-colors ${item.status === 'pass' ? 'bg-emerald-500 text-white' : 'bg-slate-100 text-slate-300 hover:text-emerald-500 hover:bg-emerald-50'}"
+                                                class="w-8 h-8 rounded-xl flex items-center justify-center transition-all ${item.status === 'pass' ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-200' : 'bg-white/50 text-slate-400 hover:text-emerald-500 hover:bg-white'}"
                                             >
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                                     <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
                                                 </svg>
                                             </button>
                                             <button 
                                                 onclick="toggleItemStatus(${item.id}, 'fail')" 
-                                                class="w-6 h-6 rounded flex items-center justify-center transition-colors ${item.status === 'fail' ? 'bg-red-500 text-white' : 'bg-slate-100 text-slate-300 hover:text-red-500 hover:bg-red-50'}"
+                                                class="w-8 h-8 rounded-xl flex items-center justify-center transition-all ${item.status === 'fail' ? 'bg-red-500 text-white shadow-lg shadow-red-200' : 'bg-white/50 text-slate-400 hover:text-red-500 hover:bg-white'}"
                                             >
-                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                                     <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
                                                 </svg>
                                             </button>
                                         </div>
                                         <div class="flex-1">
-                                            <p class="text-slate-700 font-medium ${item.status === 'pass' ? 'line-through text-slate-400' : ''}">${item.label}</p>
+                                            <p class="text-indigo-950 font-semibold text-lg ${item.status === 'pass' ? 'line-through text-slate-400 opacity-60' : ''}">${item.label}</p>
+                                            ${item.comment ? `
+                                                <div class="mt-4 p-4 rounded-2xl border ${item.comment.startsWith('Warning:') ? 'bg-amber-50/50 border-amber-200 text-amber-900 shadow-sm' : 'bg-indigo-50/50 border-indigo-100 text-indigo-900/60'} text-sm font-medium animate-fade-in">
+                                                    <div class="flex gap-3">
+                                                        ${item.comment.startsWith('Warning:') ? `
+                                                            <div class="bg-amber-500 text-white rounded-lg p-1 h-fit shadow-lg shadow-amber-200">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                                                </svg>
+                                                            </div>
+                                                        ` : `
+                                                            <div class="text-indigo-400 mt-1">
+                                                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                                                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                                                </svg>
+                                                            </div>
+                                                        `}
+                                                        <div class="flex-1 italic">
+                                                            ${item.comment}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ` : ''}
                                             ${item.status === 'fail' ? `
                                                 <textarea 
-                                                    class="mt-2 w-full text-sm border-slate-200 rounded-md focus:ring-red-200 focus:border-red-400" 
+                                                    class="mt-4 w-full text-sm border-indigo-100 bg-white/50 rounded-xl focus:ring-red-200 focus:border-red-400 focus:bg-white transition-all" 
                                                     placeholder="Add feedback for failure..."
                                                     onblur="updateItemComment(${item.id}, this.value)"
                                                 >${item.comment || ''}</textarea>
@@ -221,22 +256,22 @@
                     `).join('')}
                 </div>
 
-                <div class="space-y-6">
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-100 sticky top-12">
-                        <h4 class="font-bold text-slate-800 mb-4">Project Controls</h4>
-                        <div class="space-y-4">
+                <div class="space-y-8">
+                    <div class="glass-card p-8 rounded-3xl border-0 sticky top-12 shadow-2xl">
+                        <h4 class="font-bold text-indigo-950 text-xl mb-6 tracking-tight">Project Status</h4>
+                        <div class="space-y-6">
                             <div>
-                                <label class="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-2">Current Status</label>
-                                <span class="px-3 py-1 rounded-full text-sm font-medium ${ui.statusColors[p.status]}">${p.status.replace('_', ' ')}</span>
+                                <label class="text-[10px] font-black text-indigo-900/40 uppercase tracking-[0.2em] block mb-3">Status Pipeline</label>
+                                <span class="px-4 py-2 rounded-full text-xs font-black uppercase tracking-widest ${ui.statusColors[p.status]} status-badge">${p.status.replace('_', ' ')}</span>
                             </div>
                             
-                            <div class="pt-4 border-t border-slate-100 space-y-2">
+                            <div class="pt-6 border-t border-indigo-900/5 space-y-3">
                                 <button 
                                     id="run-audit-btn"
                                     onclick="handleRunAudit()"
-                                    class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-all font-medium flex items-center justify-center gap-2"
+                                    class="w-full py-3.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl shadow-xl shadow-indigo-600/20 transition-all font-bold flex items-center justify-center gap-2 active:scale-95 group"
                                 >
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor shadowed-sm">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 group-hover:rotate-12 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                     </svg>
                                     Run Auto Audit
@@ -244,7 +279,7 @@
 
                                 <button 
                                     onclick="updateProjectStatus('${p.status === 'IN_QA' ? 'COMPLETED' : 'IN_QA'}')"
-                                    class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
+                                    class="w-full py-3.5 bg-white hover:bg-indigo-50 border border-indigo-100 text-indigo-700 rounded-2xl transition-all font-bold active:scale-95"
                                     ${!allDone && p.status !== 'IN_QA' ? 'disabled' : ''}
                                 >
                                     ${p.status === 'IN_QA' ? 'Mark as Completed' : 'Send to QA'}
@@ -253,17 +288,17 @@
                                 ${p.status === 'IN_QA' ? `
                                     <button 
                                         onclick="updateProjectStatus('FAILED')"
-                                        class="w-full py-2 bg-red-50 text-red-600 hover:bg-red-100 rounded-lg transition-colors font-medium border border-red-100"
+                                        class="w-full py-3.5 bg-red-50 text-red-600 hover:bg-red-100 rounded-2xl transition-all font-bold border border-red-100 active:scale-95"
                                     >
-                                        Reject & Return to Dev
+                                        Reject Result
                                     </button>
                                 ` : ''}
 
                                 <button 
                                     onclick="archiveProject()"
-                                    class="w-full py-2 text-slate-400 hover:text-slate-600 text-sm transition-colors"
+                                    class="w-full py-3.5 text-indigo-900/40 hover:text-indigo-900/60 text-xs font-bold transition-colors"
                                 >
-                                    Archive Project
+                                    Archive Pipeline
                                 </button>
                             </div>
                         </div>

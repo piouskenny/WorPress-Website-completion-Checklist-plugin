@@ -15,7 +15,7 @@ class QA_Checklist_Automation {
 
 	public function __construct( $project_id ) {
 		$this->project_id = $project_id;
-		$this->site_url   = get_home_url();
+		$this->site_url   = get_option( 'qa_checklist_site_url', get_home_url() );
 	}
 
 	public function run_audit() {
@@ -54,9 +54,11 @@ class QA_Checklist_Automation {
 		$results['email'] = $this->check_contact_email();
 		$results['address_map'] = $this->check_address_and_map();
 		$results['broken_links'] = $this->check_broken_links();
+		$results['logo'] = $this->check_logo();
 
 		if ( $this->project->has_woocommerce ) {
 			$results['woocommerce'] = $this->check_woocommerce();
+			$results['currency'] = $this->check_currency();
 		}
 
 		// Update database items based on results
@@ -78,10 +80,9 @@ class QA_Checklist_Automation {
 					$res = $results['seo'];
 					$update = array(
 						'status'  => ( $res['title'] && $res['description'] ) ? 'passed' : 'failed',
-						'comment' => sprintf( "Title: %s | Description: %s", 
-							$res['title'] ? 'OK' : 'MISSING', 
-							$res['description'] ? 'OK' : 'MISSING' 
-						)
+						'comment' => ( $res['title'] && $res['description'] ) 
+							? sprintf( "SEO tags found. Title: %s", $res['title'] )
+							: "Warning: Missing SEO Meta tags. Action Required: Please update your homepage title and meta description for better SEO."
 					);
 					break;
 
@@ -89,7 +90,9 @@ class QA_Checklist_Automation {
 					$res = $results['headings'];
 					$update = array(
 						'status'  => $res['status'],
-						'comment' => $res['message']
+						'comment' => $res['status'] === 'passed' 
+							? $res['message'] 
+							: "Warning: Heading hierarchy issue. Action Required: " . $res['message']
 					);
 					break;
 
@@ -97,7 +100,9 @@ class QA_Checklist_Automation {
 					$res = $results['mobile'];
 					$update = array(
 						'status'  => $res['viewport'] ? 'passed' : 'failed',
-						'comment' => $res['viewport'] ? 'Viewport meta found.' : 'Viewport meta MISSING.'
+						'comment' => $res['viewport'] 
+							? 'Viewport meta found (Mobile Optimized).' 
+							: 'Warning: Viewport meta tag missing. Action Required: Add <meta name="viewport" content="..."> to your theme header.'
 					);
 					break;
 
@@ -107,7 +112,10 @@ class QA_Checklist_Automation {
 						// We don't mark it passed automatically because "AI errors" still need manual check, 
 						// but we can flag it if failed.
 						if ( $res['too_many_dashes'] ) {
-							$update = array( 'status' => 'failed', 'comment' => 'Excessive hyphens detected.' );
+							$update = array( 
+								'status' => 'failed', 
+								'comment' => 'Warning: Excessive hyphens detected (---). Action Required: Review your content for placeholder text or formatting errors.' 
+							);
 						}
 					}
 					break;
@@ -117,7 +125,9 @@ class QA_Checklist_Automation {
 						$res = $results['woocommerce'];
 						$update = array(
 							'status'  => $res['status'] === 200 ? 'passed' : 'failed',
-							'comment' => "Shop returned status code: " . $res['status']
+							'comment' => $res['status'] === 200 
+								? "Shop is public and accessible." 
+								: "Warning: Shop inaccessible (Status {$res['status']}). Action Required: Ensure your WooCommerce /shop/ page is published and public."
 						);
 					}
 					break;
@@ -134,10 +144,9 @@ class QA_Checklist_Automation {
 					$res = $results['address_map'];
 					$update = array(
 						'status'  => ( $res['address_found'] && $res['map_found'] ) ? 'passed' : 'failed',
-						'comment' => sprintf( "Address: %s | Map: %s", 
-							$res['address_found'] ? 'Found' : 'MISSING', 
-							$res['map_found'] ? 'Found' : 'MISSING' 
-						)
+						'comment' => ( $res['address_found'] && $res['map_found'] )
+							? "Address and Map match settings."
+							: "Warning: Address or Map mismatch. Action Required: Ensure the company address is in settings and matches the footer/map on the site."
 					);
 					break;
 
@@ -145,8 +154,32 @@ class QA_Checklist_Automation {
 					$res = $results['email'];
 					$update = array(
 						'status'  => $res['found'] ? 'passed' : 'failed',
-						'comment' => $res['found'] ? "Found expected email: {$res['target']}" : "Expected email {$res['target']} MISSING on site."
+						'comment' => $res['found'] 
+							? "Found expected email: {$res['target']}" 
+							: "Warning: Expected email {$res['target']} missing. Action Required: Ensure the company email is visible to customers."
 					);
+					break;
+
+				case 'Logo presence check':
+					$res = $results['logo'];
+					$update = array(
+						'status'  => $res['found'] ? 'passed' : 'failed',
+						'comment' => $res['found'] 
+							? "Logo found via " . $res['method'] 
+							: "Warning: No logo detected. Action Required: Upload a custom logo via Appearance > Customize > Site Identity."
+					);
+					break;
+
+				case 'Currency configuration check':
+					if ( isset( $results['currency'] ) ) {
+						$res = $results['currency'];
+						$update = array(
+							'status'  => $res['match'] ? 'passed' : 'failed',
+							'comment' => $res['match'] 
+								? "Currency matches: {$res['expected']}" 
+								: "Warning: Currency mismatch ({$res['actual']}). Action Required: Set the store currency to {$res['expected']} in WC > Settings."
+						);
+					}
 					break;
 			}
 
@@ -313,8 +346,41 @@ class QA_Checklist_Automation {
 	}
 
 	private function check_woocommerce() {
-		$shop_url = $this->site_url . '/shop/'; // Standard WooCommerce shop slug
+		$shop_url = rtrim($this->site_url, '/') . '/shop/';
 		$response = wp_remote_get( $shop_url );
 		return array( 'status' => wp_remote_retrieve_response_code( $response ) );
+	}
+
+	private function check_logo() {
+		// Method 1: WordPress Custom Logo
+		if ( has_custom_logo() ) {
+			return array( 'found' => true, 'method' => 'WP Customizer' );
+		}
+
+		// Method 2: DOM Scan for common classes
+		$logo_selectors = array( '.logo', '.custom-logo', '.site-logo', '#logo', '.brand-logo' );
+		foreach ( $logo_selectors as $selector ) {
+			// Very basic check: just look for the class string in HTML if DOM search is too heavy
+			if ( strpos( $this->html_content, str_replace('.', '', $selector) ) !== false ) {
+				return array( 'found' => true, 'method' => 'HTML class scan' );
+			}
+		}
+
+		return array( 'found' => false );
+	}
+
+	private function check_currency() {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return array( 'match' => false, 'actual' => 'WC Missing', 'expected' => '' );
+		}
+
+		$expected = get_option( 'qa_checklist_expected_currency', 'USD' );
+		$actual = get_woocommerce_currency();
+
+		return array(
+			'match'    => ( strtoupper($actual) === strtoupper($expected) ),
+			'actual'   => $actual,
+			'expected' => $expected
+		);
 	}
 }

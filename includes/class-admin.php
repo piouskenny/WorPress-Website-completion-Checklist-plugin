@@ -15,6 +15,8 @@ class QA_Checklist_Admin {
 	public function register_settings() {
 		register_setting( 'qa_checklist_settings_group', 'qa_checklist_extra_emails' );
 		register_setting( 'qa_checklist_settings_group', 'qa_checklist_original_address' );
+		register_setting( 'qa_checklist_settings_group', 'qa_checklist_site_url' );
+		register_setting( 'qa_checklist_settings_group', 'qa_checklist_expected_currency' );
 	}
 
 	public function register_menu() {
@@ -43,11 +45,12 @@ class QA_Checklist_Admin {
 			return;
 		}
 
-		// Tailwind Play CDN (for development/internal tools)
+		// Fonts and Tailwind
+		wp_enqueue_style( 'google-font-outfit', 'https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap', array(), null );
 		wp_enqueue_script( 'tailwind-cdn', 'https://cdn.tailwindcss.com', array(), '3.4.1' );
 
-		wp_enqueue_style( 'qa-checklist-admin-css', QA_CHECKLIST_URL . 'assets/css/admin.css', array(), '1.0.0' );
-		wp_enqueue_script( 'qa-checklist-admin-js', QA_CHECKLIST_URL . 'assets/js/admin.js', array(), '1.0.0', true );
+		wp_enqueue_style( 'qa-checklist-admin-css', QA_CHECKLIST_URL . 'assets/css/admin.css', array(), '1.1.0' );
+		wp_enqueue_script( 'qa-checklist-admin-js', QA_CHECKLIST_URL . 'assets/js/admin.js', array(), '1.1.0', true );
 
 		wp_localize_script( 'qa-checklist-admin-js', 'qaChecklistData', array(
 			'root'     => esc_url_raw( rest_url() ),
@@ -58,10 +61,14 @@ class QA_Checklist_Admin {
 
 	public function render_app() {
 		?>
-		<div id="qa-checklist-app" class="p-6">
-			<div class="flex justify-between items-center mb-8">
-				<h1 class="text-3xl font-bold text-slate-800">Website QA Checklist</h1>
-				<button id="new-project-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg shadow-sm transition-colors flex items-center gap-2">
+		<div id="qa-checklist-app" class="font-['Outfit',sans-serif] text-slate-900 leading-relaxed overflow-x-hidden">
+			<div class="max-w-7xl mx-auto p-6 lg:p-12 min-h-screen">
+				<div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6 animate-fade-in">
+					<div>
+						<h1 class="text-4xl lg:text-5xl font-bold text-slate-900 tracking-tight">Website QA Checklist</h1>
+						<p class="text-slate-500 mt-2 font-medium italic">Quality Assurance Pipeline & Monitoring</p>
+					</div>
+					<button id="new-project-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-3.5 rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-95 flex items-center gap-2 font-bold tracking-wide">
 					<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
 						<path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
 					</svg>
@@ -93,38 +100,46 @@ class QA_Checklist_Admin {
 			</div>
 
 			<!-- New Project Modal (Hidden by default) -->
-			<div id="new-project-modal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-				<div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
-					<h2 class="text-xl font-bold mb-4">Create New Project</h2>
+			<div id="new-project-modal" class="hidden fixed inset-0 bg-indigo-950/60 backdrop-blur-md z-[9999] flex items-center justify-center p-4 transition-all duration-300">
+				<div class="glass-card rounded-[2rem] shadow-2xl w-full max-w-lg p-10 border-0 animate-fade-in">
+					<div class="flex justify-between items-center mb-8">
+						<h2 class="text-3xl font-bold text-indigo-950 tracking-tight">New Pipeline</h2>
+						<button id="close-modal" class="text-indigo-900/40 hover:text-indigo-900 transition-colors">
+							<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+							</svg>
+						</button>
+					</div>
 					<form id="new-project-form">
-						<div class="space-y-4">
+						<div class="space-y-6">
 							<div>
-								<label class="block text-sm font-medium text-slate-700 mb-1">Project Name</label>
-								<input type="text" name="name" required class="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none">
+								<label class="block text-[10px] font-black text-indigo-900/40 uppercase tracking-[0.2em] mb-2 px-1">Project Identifier</label>
+								<input type="text" name="name" required placeholder="e.g. Acme Corp Website" class="w-full px-5 py-4 bg-white/50 border-indigo-100 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 outline-none transition-all font-medium text-indigo-950 placeholder:text-indigo-200">
 							</div>
 							<div>
-								<label class="block text-sm font-medium text-slate-700 mb-1">Assign to</label>
-								<select name="assigned_user_id" id="user-select" class="w-full px-3 py-2 border border-slate-300 rounded-lg outline-none"></select>
+								<label class="block text-[10px] font-black text-indigo-900/40 uppercase tracking-[0.2em] mb-2 px-1">Assigned Analyst</label>
+								<select name="assigned_user_id" id="user-select" class="w-full px-5 py-4 bg-white/50 border-indigo-100 rounded-2xl outline-none focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all font-medium text-indigo-950"></select>
 							</div>
-							<div class="space-y-2 pt-2 border-t border-slate-100">
-								<p class="text-sm font-medium text-slate-700">Optional Sections</p>
-								<label class="flex items-center gap-2 cursor-pointer">
-									<input type="checkbox" name="has_woocommerce" class="w-4 h-4 text-indigo-600 rounded">
-									<span class="text-sm text-slate-600">WooCommerce</span>
-								</label>
-								<label class="flex items-center gap-2 cursor-pointer">
-									<input type="checkbox" name="has_forms" class="w-4 h-4 text-indigo-600 rounded">
-									<span class="text-sm text-slate-600">Forms</span>
-								</label>
-								<label class="flex items-center gap-2 cursor-pointer">
-									<input type="checkbox" name="has_seo" class="w-4 h-4 text-indigo-600 rounded">
-									<span class="text-sm text-slate-600">SEO</span>
-								</label>
+							<div class="space-y-3 pt-4 border-t border-indigo-900/5">
+								<p class="text-[10px] font-black text-indigo-900/40 uppercase tracking-[0.2em] mb-4 px-1">Optional Scope</p>
+								<div class="grid grid-cols-1 gap-3">
+									<label class="flex items-center gap-4 bg-white/30 p-4 rounded-2xl border border-transparent hover:border-indigo-100 peer-checked:bg-indigo-50 transition-all cursor-pointer group">
+										<input type="checkbox" name="has_woocommerce" class="w-5 h-5 text-indigo-600 rounded-lg border-indigo-200 focus:ring-indigo-500">
+										<span class="text-sm font-bold text-indigo-900/70 group-hover:text-indigo-900">WooCommerce Ecosystem</span>
+									</label>
+									<label class="flex items-center gap-4 bg-white/30 p-4 rounded-2xl border border-transparent hover:border-indigo-100 transition-all cursor-pointer group">
+										<input type="checkbox" name="has_forms" class="w-5 h-5 text-indigo-600 rounded-lg border-indigo-200 focus:ring-indigo-500">
+										<span class="text-sm font-bold text-indigo-900/70 group-hover:text-indigo-900">Interactive Form Audits</span>
+									</label>
+									<label class="flex items-center gap-4 bg-white/30 p-4 rounded-2xl border border-transparent hover:border-indigo-100 transition-all cursor-pointer group">
+										<input type="checkbox" name="has_seo" class="w-5 h-5 text-indigo-600 rounded-lg border-indigo-200 focus:ring-indigo-500">
+										<span class="text-sm font-bold text-indigo-900/70 group-hover:text-indigo-900">Search Engine Optimization</span>
+									</label>
+								</div>
 							</div>
 						</div>
-						<div class="flex gap-3 mt-6">
-							<button type="button" id="close-modal" class="flex-1 px-4 py-2 bg-slate-100 text-slate-700 rounded-lg hover:bg-slate-200 transition-colors">Cancel</button>
-							<button type="submit" class="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors">Create Project</button>
+						<div class="mt-10">
+							<button type="submit" class="w-full py-5 bg-indigo-600 text-white rounded-[1.5rem] font-black uppercase tracking-widest hover:bg-indigo-700 shadow-2xl shadow-indigo-600/30 transition-all active:scale-95">Initialize Project</button>
 						</div>
 					</form>
 				</div>
@@ -141,6 +156,20 @@ class QA_Checklist_Admin {
 				<?php settings_fields( 'qa_checklist_settings_group' ); ?>
 				<?php do_settings_sections( 'qa_checklist_settings_group' ); ?>
 				<table class="form-table">
+					<tr valign="top">
+						<th scope="row">Target Website URL</th>
+						<td>
+							<input type="url" name="qa_checklist_site_url" value="<?php echo esc_url( get_option('qa_checklist_site_url', get_home_url()) ); ?>" class="regular-text" style="width: 100%; max-width: 500px;" />
+							<p class="description">The URL of the website to be audited. Defaults to the current site URL.</p>
+						</td>
+					</tr>
+					<tr valign="top">
+						<th scope="row">Expected Store Currency (WC)</th>
+						<td>
+							<input type="text" name="qa_checklist_expected_currency" value="<?php echo esc_attr( get_option('qa_checklist_expected_currency', 'USD') ); ?>" class="regular-text" style="width: 100%; max-width: 100px;" placeholder="e.g. USD" />
+							<p class="description">Enter the 3-letter currency code (e.g., USD, NGN, GBP) to validate against the WooCommerce settings.</p>
+						</td>
+					</tr>
 					<tr valign="top">
 						<th scope="row">Additional Notification Emails</th>
 						<td>
