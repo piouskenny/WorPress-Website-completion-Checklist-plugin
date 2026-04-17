@@ -47,6 +47,14 @@ class QA_Checklist_API {
 			),
 		) );
 
+		register_rest_route( $namespace, '/projects/(?P<id>\d+)/audit', array(
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'run_project_audit' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			),
+		) );
+
 		register_rest_route( $namespace, '/users', array(
 			array(
 				'methods'             => WP_REST_Server::READABLE,
@@ -215,5 +223,21 @@ class QA_Checklist_API {
 			'fields'   => array( 'ID', 'display_name' ) 
 		) );
 		return rest_ensure_response( $users );
+	}
+
+	public function run_project_audit( $request ) {
+		$id = $request['id'];
+		$automation = new QA_Checklist_Automation( $id );
+		$results = $automation->run_audit();
+
+		if ( is_wp_error( $results ) ) {
+			return $results;
+		}
+
+		return rest_ensure_response( array( 
+			'success' => true, 
+			'message' => 'Audit completed successfully',
+			'results' => $results
+		) );
 	}
 }

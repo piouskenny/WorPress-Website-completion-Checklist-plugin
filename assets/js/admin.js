@@ -26,7 +26,8 @@
         createProject: (data) => api.fetch('/projects', { method: 'POST', body: JSON.stringify(data) }),
         updateProject: (id, data) => api.fetch(`/projects/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
         updateItem: (id, data) => api.fetch(`/checklist/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
-        getUsers: () => api.fetch('/users')
+        getUsers: () => api.fetch('/users'),
+        runAudit: (id) => api.fetch(`/projects/${id}/audit`, { method: 'POST' })
     };
 
     const ui = {
@@ -231,6 +232,17 @@
                             
                             <div class="pt-4 border-t border-slate-100 space-y-2">
                                 <button 
+                                    id="run-audit-btn"
+                                    onclick="handleRunAudit()"
+                                    class="w-full py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-lg transition-all font-medium flex items-center justify-center gap-2"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor shadowed-sm">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                    Run Auto Audit
+                                </button>
+
+                                <button 
                                     onclick="updateProjectStatus('${p.status === 'IN_QA' ? 'COMPLETED' : 'IN_QA'}')"
                                     class="w-full py-2 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-colors font-medium"
                                     ${!allDone && p.status !== 'IN_QA' ? 'disabled' : ''}
@@ -307,6 +319,37 @@
             switchView('dashboard');
         } catch (error) {
             console.error('Failed to archive project:', error);
+        }
+    };
+
+    window.handleRunAudit = async () => {
+        const btn = document.getElementById('run-audit-btn');
+        if (!btn || state.loading) return;
+
+        const originalText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Auditing...`;
+        state.loading = true;
+
+        try {
+            const data = await api.runAudit(state.currentProject.id);
+            if (data.success) {
+                // Refresh project data to see updated checklist items
+                state.currentProject = await api.getProject(state.currentProject.id);
+                renderProjectDetail();
+                alert('Audit completed and checklist updated!');
+            } else {
+                alert('Audit encountered an issue: ' + (data.message || 'Unknown error'));
+            }
+        } catch (error) {
+            console.error('Audit failed:', error);
+            alert('Failed to connect to the audit engine.');
+        } finally {
+            state.loading = false;
+            if (btn) {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
         }
     };
 

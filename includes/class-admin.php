@@ -14,6 +14,7 @@ class QA_Checklist_Admin {
 
 	public function register_settings() {
 		register_setting( 'qa_checklist_settings_group', 'qa_checklist_extra_emails' );
+		register_setting( 'qa_checklist_settings_group', 'qa_checklist_original_address' );
 	}
 
 	public function register_menu() {
@@ -145,6 +146,12 @@ class QA_Checklist_Admin {
 						<td>
 							<input type="text" name="qa_checklist_extra_emails" value="<?php echo esc_attr( get_option('qa_checklist_extra_emails') ); ?>" class="regular-text" style="width: 100%; max-width: 500px;" placeholder="e.g. email1@test.com, email2@test.com" />
 							<p class="description">Enter comma-separated email addresses to receive completion notifications alongside the default manager email (kehindeu13@gmail.com).</p>
+						</td>
+					<tr valign="top">
+						<th scope="row">Original Company Address</th>
+						<td>
+							<textarea name="qa_checklist_original_address" rows="3" class="regular-text" style="width: 100%; max-width: 500px;" placeholder="e.g. 123 Business Rd, Suite 100, City, Country"><?php echo esc_textarea( get_option('qa_checklist_original_address') ); ?></textarea>
+							<p class="description">Enter the official company address. The automation engine will verify if this address is present on the website and correctly linked in the map embed.</p>
 						</td>
 					</tr>
 				</table>

@@ -18,6 +18,7 @@ define( 'QA_CHECKLIST_URL', plugin_dir_url( __FILE__ ) );
 require_once QA_CHECKLIST_PATH . 'includes/class-database.php';
 require_once QA_CHECKLIST_PATH . 'includes/checklist-items.php';
 require_once QA_CHECKLIST_PATH . 'includes/class-api.php';
+require_once QA_CHECKLIST_PATH . 'includes/class-automation.php';
 require_once QA_CHECKLIST_PATH . 'includes/class-admin.php';
 
 /**
