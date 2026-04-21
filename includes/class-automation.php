@@ -12,6 +12,7 @@ class QA_Checklist_Automation {
 	private $html_content;
 	private $dom;
 	private $site_url;
+	private $scanned_pages = array();
 
 	public function __construct( $project_id ) {
 		$this->project_id = $project_id;
@@ -40,9 +41,40 @@ class QA_Checklist_Automation {
 			return new WP_Error( 'empty_content', 'Could not retrieve site content' );
 		}
 
+		$this->scanned_pages[$this->site_url] = $this->html_content;
+
 		// Initialize DOM
 		$this->dom = new DOMDocument();
 		@$this->dom->loadHTML( mb_convert_encoding( $this->html_content, 'HTML-ENTITIES', 'UTF-8' ) );
+
+		// Extract internal links to find contact page or footer
+		$links = $this->dom->getElementsByTagName('a');
+		$contact_urls = array();
+		foreach ( $links as $link ) {
+			$href = $link->getAttribute('href');
+			if ( stripos($href, 'contact') !== false ) {
+				if ( strpos( $href, '/' ) === 0 ) {
+					$href = rtrim($this->site_url, '/') . $href;
+				}
+				if ( strpos( $href, $this->site_url ) === 0 ) {
+					$contact_urls[] = $href;
+				}
+			}
+		}
+		
+		// Fetch up to 2 contact-like pages to improve scanning for emails/maps
+		if ( !empty($contact_urls) ) {
+			$contact_urls = array_unique($contact_urls);
+			$count = 0;
+			foreach ($contact_urls as $curl) {
+				if ($count >= 2) break;
+				$cres = wp_remote_get( $curl );
+				if ( ! is_wp_error( $cres ) ) {
+					$this->scanned_pages[$curl] = wp_remote_retrieve_body( $cres );
+				}
+				$count++;
+			}
+		}
 
 		$results = array();
 
@@ -79,7 +111,7 @@ class QA_Checklist_Automation {
 				case 'Meta titles/descriptions':
 					$res = $results['seo'];
 					$update = array(
-						'status'  => ( $res['title'] && $res['description'] ) ? 'passed' : 'failed',
+						'status'  => ( $res['title'] && $res['description'] ) ? 'pass' : 'fail',
 						'comment' => ( $res['title'] && $res['description'] ) 
 							? sprintf( "SEO tags found. Title: %s", $res['title'] )
 							: "Warning: Missing SEO Meta tags. Action Required: Please update your homepage title and meta description for better SEO."
@@ -99,7 +131,7 @@ class QA_Checklist_Automation {
 				case 'Mobile responsiveness':
 					$res = $results['mobile'];
 					$update = array(
-						'status'  => $res['viewport'] ? 'passed' : 'failed',
+						'status'  => $res['viewport'] ? 'pass' : 'fail',
 						'comment' => $res['viewport'] 
 							? 'Viewport meta found (Mobile Optimized).' 
 							: 'Warning: Viewport meta tag missing. Action Required: Add <meta name="viewport" content="..."> to your theme header.'
@@ -108,15 +140,11 @@ class QA_Checklist_Automation {
 
 				case 'Content validation (no dummy/AI errors)':
 					$res = $results['content_quality'];
-					if ( ! $res['too_many_dashes'] ) {
-						// We don't mark it passed automatically because "AI errors" still need manual check, 
-						// but we can flag it if failed.
-						if ( $res['too_many_dashes'] ) {
-							$update = array( 
-								'status' => 'failed', 
-								'comment' => 'Warning: Excessive hyphens detected (---). Action Required: Review your content for placeholder text or formatting errors.' 
-							);
-						}
+					if ( $res['too_many_dashes'] ) {
+						$update = array( 
+							'status' => 'fail', 
+							'comment' => 'Warning: Excessive hyphens detected (---). Action Required: Review your content for placeholder text or formatting errors.' 
+						);
 					}
 					break;
 
@@ -124,7 +152,7 @@ class QA_Checklist_Automation {
 					if ( isset( $results['woocommerce'] ) ) {
 						$res = $results['woocommerce'];
 						$update = array(
-							'status'  => $res['status'] === 200 ? 'passed' : 'failed',
+							'status'  => $res['status'] === 200 ? 'pass' : 'fail',
 							'comment' => $res['status'] === 200 
 								? "Shop is public and accessible." 
 								: "Warning: Shop inaccessible (Status {$res['status']}). Action Required: Ensure your WooCommerce /shop/ page is published and public."
@@ -135,7 +163,7 @@ class QA_Checklist_Automation {
 				case 'Footer links validation':
 					$res = $results['broken_links'];
 					$update = array(
-						'status'  => empty( $res['broken'] ) ? 'passed' : 'failed',
+						'status'  => empty( $res['broken'] ) ? 'pass' : 'fail',
 						'comment' => empty( $res['broken'] ) ? 'No broken links found on homepage.' : 'Found broken links: ' . implode( ', ', $res['broken'] )
 					);
 					break;
@@ -143,7 +171,7 @@ class QA_Checklist_Automation {
 				case 'Map & address validation':
 					$res = $results['address_map'];
 					$update = array(
-						'status'  => ( $res['address_found'] && $res['map_found'] ) ? 'passed' : 'failed',
+						'status'  => ( $res['address_found'] && $res['map_found'] ) ? 'pass' : 'fail',
 						'comment' => ( $res['address_found'] && $res['map_found'] )
 							? "Address and Map match settings."
 							: "Warning: Address or Map mismatch. Action Required: Ensure the company address is in settings and matches the footer/map on the site."
@@ -153,7 +181,7 @@ class QA_Checklist_Automation {
 				case 'Company email accuracy':
 					$res = $results['email'];
 					$update = array(
-						'status'  => $res['found'] ? 'passed' : 'failed',
+						'status'  => $res['found'] ? 'pass' : 'fail',
 						'comment' => $res['found'] 
 							? "Found expected email: {$res['target']}" 
 							: "Warning: Expected email {$res['target']} missing. Action Required: Ensure the company email is visible to customers."
@@ -163,7 +191,7 @@ class QA_Checklist_Automation {
 				case 'Logo presence check':
 					$res = $results['logo'];
 					$update = array(
-						'status'  => $res['found'] ? 'passed' : 'failed',
+						'status'  => $res['found'] ? 'pass' : 'fail',
 						'comment' => $res['found'] 
 							? "Logo found via " . $res['method'] 
 							: "Warning: No logo detected. Action Required: Upload a custom logo via Appearance > Customize > Site Identity."
@@ -174,7 +202,7 @@ class QA_Checklist_Automation {
 					if ( isset( $results['currency'] ) ) {
 						$res = $results['currency'];
 						$update = array(
-							'status'  => $res['match'] ? 'passed' : 'failed',
+							'status'  => $res['match'] ? 'pass' : 'fail',
 							'comment' => $res['match'] 
 								? "Currency matches: {$res['expected']}" 
 								: "Warning: Currency mismatch ({$res['actual']}). Action Required: Set the store currency to {$res['expected']} in WC > Settings."
@@ -218,10 +246,7 @@ class QA_Checklist_Automation {
 	}
 
 	private function check_headings() {
-		$headings = array();
 		$tags = array('h1', 'h2', 'h3', 'h4', 'h5', 'h6');
-		
-		// Simple hierarchy check: H1 should exist, and no level should skip (e.g. H2 followed by H4)
 		$found_tags = array();
 		$all_elements = $this->dom->getElementsByTagName('*');
 		foreach ( $all_elements as $el ) {
@@ -238,15 +263,8 @@ class QA_Checklist_Automation {
 			return array( 'status' => 'failed', 'message' => 'Missing H1 heading.' );
 		}
 
-		$prev = 0;
-		foreach ( $found_tags as $level ) {
-			if ( $prev > 0 && $level > $prev + 1 ) {
-				return array( 'status' => 'failed', 'message' => "Heading level skipped from H{$prev} to H{$level}." );
-			}
-			$prev = $level;
-		}
-
-		return array( 'status' => 'passed', 'message' => 'Heading hierarchy is correct.' );
+		// Removed strict hierarchy check due to high false positives with Elementor widgets and footers
+		return array( 'status' => 'passed', 'message' => 'Heading structure is valid (H1 present).' );
 	}
 
 	private function check_mobile() {
@@ -262,8 +280,12 @@ class QA_Checklist_Automation {
 	}
 
 	private function check_content_quality() {
+		// Strip scripts, styles, and tags to avoid false positives with Elementor JSON config or SVGs
+		$clean_html = preg_replace('@<(script|style)[^>]*?>.*?</\\1>@si', '', $this->html_content);
+		$clean_text = strip_tags($clean_html);
+		
 		// Check for 3 or more consecutive hyphens
-		$too_many_dashes = ( preg_match( '/-{3,}/', $this->html_content ) === 1 );
+		$too_many_dashes = ( preg_match( '/-{3,}/', $clean_text ) === 1 );
 		return array( 'too_many_dashes' => $too_many_dashes );
 	}
 
@@ -272,7 +294,20 @@ class QA_Checklist_Automation {
 		$domain = preg_replace( '/^www\./', '', $domain );
 		
 		$target_email = $this->project->has_woocommerce ? "sales@{$domain}" : "info@{$domain}";
-		$found = ( strpos( $this->html_content, $target_email ) !== false );
+		$found = false;
+		
+		foreach ( $this->scanned_pages as $url => $html ) {
+			if ( stripos( $html, $target_email ) !== false ) {
+				$found = true;
+				break;
+			}
+			// Search for any email containing the domain
+			if ( preg_match( '/[\w\.\-\+]+@' . preg_quote($domain, '/') . '/i', $html, $matches ) ) {
+				$found = true;
+				$target_email = $matches[0];
+				break;
+			}
+		}
 
 		return array(
 			'target' => $target_email,
@@ -285,20 +320,18 @@ class QA_Checklist_Automation {
 		$address_found = false;
 		$map_found = false;
 
-		if ( ! empty( $original_address ) ) {
-			$address_found = ( stripos( $this->html_content, $original_address ) !== false );
+		foreach ( $this->scanned_pages as $url => $html ) {
+			if ( strpos( $html, 'google.com/maps' ) !== false || strpos( $html, 'maps.google.com' ) !== false || strpos( $html, 'elementor-widget-google_maps' ) !== false ) {
+				$map_found = true;
+			}
 
-			$iframes = $this->dom->getElementsByTagName('iframe');
-			foreach ( $iframes as $iframe ) {
-				$src = $iframe->getAttribute('src');
-				if ( strpos( $src, 'google.com/maps' ) !== false ) {
-					// Check if address is in the SRC (URL encoded)
-					if ( strpos( $src, urlencode( $original_address ) ) !== false || strpos( $src, rawurlencode( $original_address ) ) !== false ) {
-						$map_found = true;
-						break;
-					}
-					// Fallback: If it's a map iframe at all, we consider it "found" but maybe not matched if encoding differs
-					$map_found = true; 
+			if ( ! empty( $original_address ) ) {
+				$address_parts = explode(',', $original_address);
+				$primary_part = trim($address_parts[0]);
+				
+				$clean_html = strip_tags( preg_replace('@<(script|style)[^>]*?>.*?</\\1>@si', '', $html) );
+				if ( stripos( $clean_html, $primary_part ) !== false ) {
+					$address_found = true;
 				}
 			}
 		}
@@ -357,10 +390,21 @@ class QA_Checklist_Automation {
 			return array( 'found' => true, 'method' => 'WP Customizer' );
 		}
 
-		// Method 2: DOM Scan for common classes
-		$logo_selectors = array( '.logo', '.custom-logo', '.site-logo', '#logo', '.brand-logo' );
+		// Method 2: Elementor & DOM Scan for Image Attributes
+		$imgs = $this->dom->getElementsByTagName('img');
+		foreach ($imgs as $img) {
+			$src = strtolower($img->getAttribute('src'));
+			$alt = strtolower($img->getAttribute('alt'));
+			$class = strtolower($img->getAttribute('class'));
+			
+			if (strpos($src, 'logo') !== false || strpos($alt, 'logo') !== false || strpos($class, 'logo') !== false) {
+				return array( 'found' => true, 'method' => 'Image Attributes' );
+			}
+		}
+
+		// Method 3: DOM Scan for common Elementor classes
+		$logo_selectors = array( '.logo', '.custom-logo', '.site-logo', '#logo', '.brand-logo', 'elementor-widget-theme-site-logo' );
 		foreach ( $logo_selectors as $selector ) {
-			// Very basic check: just look for the class string in HTML if DOM search is too heavy
 			if ( strpos( $this->html_content, str_replace('.', '', $selector) ) !== false ) {
 				return array( 'found' => true, 'method' => 'HTML class scan' );
 			}

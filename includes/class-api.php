@@ -169,37 +169,44 @@ class QA_Checklist_API {
 			$project = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}qa_projects WHERE id = %d", $id ) );
 			
 			if ( $project && $project->status !== 'COMPLETED' ) {
-				$to = array( 'kehindeu13@gmail.com' );
-				
-				// Fetch extra emails from settings
-				$extra_emails_str = get_option( 'qa_checklist_extra_emails' );
-				if ( ! empty( $extra_emails_str ) ) {
-					$extra_emails = array_map( 'trim', explode( ',', $extra_emails_str ) );
-					foreach ( $extra_emails as $email ) {
-						if ( is_email( $email ) ) {
-							$to[] = $email;
-						}
-					}
-				}
-
-				$subject = 'Checklist Completed: ' . $project->name;
-				$message = sprintf(
-					"The QA checklist for project \"%s\" has been marked as completed.\n\nProject Name: %s\nStatus: Completed\n\nYou can view the project in the QA Checklist dashboard:\n%s",
-					$project->name,
-					$project->name,
-					admin_url( 'admin.php?page=qa-checklist' )
-				);
-				
-				$sent = wp_mail( $to, $subject, $message );
-				if ( ! $sent ) {
-					error_log( 'QA Checklist Error: Completion email failed to send to ' . implode( ', ', $to ) );
-				}
+				$this->send_completion_email( $project );
 			}
 		}
 
 		$wpdb->update( "{$wpdb->prefix}qa_projects", $data, array( 'id' => $id ) );
 
 		return rest_ensure_response( array( 'message' => 'Project updated' ) );
+	}
+
+	private function send_completion_email( $project ) {
+		$to = array( 'kehindeu13@gmail.com' );
+		
+		// Fetch extra emails from settings
+		$extra_emails_str = get_option( 'qa_checklist_extra_emails' );
+		if ( ! empty( $extra_emails_str ) ) {
+			$extra_emails = array_map( 'trim', explode( ',', $extra_emails_str ) );
+			foreach ( $extra_emails as $email ) {
+				if ( is_email( $email ) ) {
+					$to[] = $email;
+				}
+			}
+		}
+
+		$subject = 'Checklist Completed: ' . $project->name;
+		$message = sprintf(
+			"The QA checklist for project \"%s\" has been marked as completed.\n\nProject Name: %s\nStatus: Completed\n\nYou can view the project in the QA Checklist dashboard:\n%s",
+			$project->name,
+			$project->name,
+			admin_url( 'admin.php?page=qa-checklist' )
+		);
+		
+		// Set content type for HTML if needed, but mail is plain text currently
+		$headers = array('Content-Type: text/plain; charset=UTF-8');
+		
+		$sent = wp_mail( $to, $subject, $message, $headers );
+		if ( ! $sent ) {
+			error_log( 'QA Checklist Error: Completion email failed to send to ' . implode( ', ', $to ) );
+		}
 	}
 
 	public function update_item( $request ) {
@@ -217,7 +224,40 @@ class QA_Checklist_API {
 
 		$wpdb->update( "{$wpdb->prefix}qa_checklist_items", $data, array( 'id' => $id ) );
 
+		// Check if project is auto-completed after this item update
+		$item = $wpdb->get_row( $wpdb->prepare( "SELECT project_id FROM {$wpdb->prefix}qa_checklist_items WHERE id = %d", $id ) );
+		if ( $item ) {
+			$this->check_project_completion( $item->project_id );
+		}
+
 		return rest_ensure_response( array( 'message' => 'Item updated' ) );
+	}
+
+	private function check_project_completion( $project_id ) {
+		global $wpdb;
+		
+		$project = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$wpdb->prefix}qa_projects WHERE id = %d", $project_id ) );
+		if ( ! $project || $project->status === 'COMPLETED' ) {
+			return;
+		}
+
+		$items = QA_Checklist_Database::get_project_items( $project_id );
+		if ( empty( $items ) ) {
+			return;
+		}
+
+		$all_passed = true;
+		foreach ( $items as $item ) {
+			if ( $item->status !== 'pass' && $item->status !== 'passed' ) {
+				$all_passed = false;
+				break;
+			}
+		}
+
+		if ( $all_passed ) {
+			$wpdb->update( "{$wpdb->prefix}qa_projects", array( 'status' => 'COMPLETED' ), array( 'id' => $project_id ) );
+			$this->send_completion_email( $project );
+		}
 	}
 
 	public function get_users( $request ) {
@@ -236,6 +276,9 @@ class QA_Checklist_API {
 		if ( is_wp_error( $results ) ) {
 			return $results;
 		}
+
+		// Check completion automatically after audit
+		$this->check_project_completion( $id );
 
 		return rest_ensure_response( array( 
 			'success' => true, 
