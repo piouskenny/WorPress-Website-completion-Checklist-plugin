@@ -62,6 +62,22 @@ class QA_Checklist_API {
 				'permission_callback' => array( $this, 'check_permission' ),
 			),
 		) );
+
+		register_rest_route( $namespace, '/search', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'search_content' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			),
+		) );
+
+		register_rest_route( $namespace, '/replace', array(
+			array(
+				'methods'             => WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'replace_content' ),
+				'permission_callback' => array( $this, 'check_permission' ),
+			),
+		) );
 	}
 
 	public function check_permission() {
@@ -285,5 +301,121 @@ class QA_Checklist_API {
 			'message' => 'Audit completed successfully',
 			'results' => $results
 		) );
+	}
+
+	public function search_content( $request ) {
+		global $wpdb;
+		$term = $request->get_param( 'term' );
+		if ( empty( $term ) ) {
+			return rest_ensure_response( array( 'count' => 0 ) );
+		}
+
+		$count = 0;
+		$term_like = '%' . $wpdb->esc_like( $term ) . '%';
+
+		$posts = $wpdb->get_results( $wpdb->prepare( "
+			SELECT post_content, post_title, post_excerpt FROM {$wpdb->posts} 
+			WHERE post_content LIKE %s 
+			OR post_title LIKE %s 
+			OR post_excerpt LIKE %s
+		", $term_like, $term_like, $term_like ) );
+
+		foreach ($posts as $p) {
+			$count += substr_count( strtolower( $p->post_content ), strtolower( $term ) );
+			$count += substr_count( strtolower( $p->post_title ), strtolower( $term ) );
+			$count += substr_count( strtolower( $p->post_excerpt ), strtolower( $term ) );
+		}
+
+		$metas = $wpdb->get_results( $wpdb->prepare( "
+			SELECT meta_value FROM {$wpdb->postmeta} 
+			WHERE meta_key = '_elementor_data' AND meta_value LIKE %s
+		", $term_like ) );
+
+		foreach ( $metas as $meta ) {
+			$count += substr_count( strtolower( $meta->meta_value ), strtolower( $term ) );
+		}
+
+		return rest_ensure_response( array( 'count' => $count ) );
+	}
+
+	public function replace_content( $request ) {
+		global $wpdb;
+		$params = $request->get_json_params();
+		$search_term = isset($params['search_term']) ? $params['search_term'] : '';
+		// Replace term can be empty string for space clearing
+		$replace_term = isset($params['replace_term']) ? $params['replace_term'] : '';
+
+		if ( empty( $search_term ) ) {
+			return new WP_Error( 'missing_term', 'Search term required', array('status'=>400) );
+		}
+
+		$term_like = '%' . $wpdb->esc_like( $search_term ) . '%';
+
+		$posts = $wpdb->get_results( $wpdb->prepare( "
+			SELECT ID, post_content, post_title, post_excerpt FROM {$wpdb->posts} 
+			WHERE post_content LIKE %s 
+			OR post_title LIKE %s 
+			OR post_excerpt LIKE %s
+		", $term_like, $term_like, $term_like ) );
+
+		foreach ( $posts as $post ) {
+			$new_content = str_ireplace( $search_term, $replace_term, $post->post_content );
+			$new_title = str_ireplace( $search_term, $replace_term, $post->post_title );
+			$new_excerpt = str_ireplace( $search_term, $replace_term, $post->post_excerpt );
+			
+			$wpdb->update( $wpdb->posts, array(
+				'post_content' => $new_content,
+				'post_title' => $new_title,
+				'post_excerpt' => $new_excerpt,
+			), array( 'ID' => $post->ID ) );
+		}
+
+		$metas = $wpdb->get_results( $wpdb->prepare( "
+			SELECT post_id, meta_value FROM {$wpdb->postmeta} 
+			WHERE meta_key = '_elementor_data' AND meta_value LIKE %s
+		", $term_like ) );
+
+		foreach ( $metas as $meta ) {
+			$data = json_decode( $meta->meta_value, true );
+			if ( $data ) {
+				$data = $this->recursive_replace( $data, $search_term, $replace_term );
+				update_post_meta( $meta->post_id, '_elementor_data', wp_slash( json_encode( $data ) ) );
+			}
+		}
+
+		$this->clear_all_caches();
+
+		return rest_ensure_response( array( 'success' => true, 'message' => 'Replacements saved successfully and cache cleared!' ) );
+	}
+
+	private function recursive_replace( $array, $search, $replace ) {
+		foreach ( $array as $key => &$value ) {
+			if ( is_array( $value ) ) {
+				$value = $this->recursive_replace( $value, $search, $replace );
+			} elseif ( is_string( $value ) ) {
+				$value = str_ireplace( $search, $replace, $value );
+			}
+		}
+		return $array;
+	}
+
+	private function clear_all_caches() {
+		wp_cache_flush();
+
+		if ( class_exists( '\Elementor\Plugin' ) ) {
+			\Elementor\Plugin::$instance->files_manager->clear_cache();
+		}
+
+		if ( function_exists( 'rocket_clean_domain' ) ) {
+			rocket_clean_domain();
+		}
+
+		if ( function_exists( 'w3tc_flush_all' ) ) {
+			w3tc_flush_all();
+		}
+
+		if ( class_exists( 'Litespeed_Cache_API' ) && method_exists( 'Litespeed_Cache_API', 'purge_all' ) ) {
+			\Litespeed_Cache_API::purge_all();
+		}
 	}
 }

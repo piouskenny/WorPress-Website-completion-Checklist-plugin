@@ -187,6 +187,117 @@ class QA_Checklist_Admin {
 				<?php submit_button(); ?>
 			</form>
 		</div>
+
+		<div class="wrap" style="margin-top: 40px; border-top: 1px solid #ccd0d4; padding-top: 20px;">
+			<h2>Search and Replace (Elementor Supported)</h2>
+			<p>Find and replace text across your entire site, including Elementor widgets and layouts. Changes will automatically clear cache plugins.</p>
+			
+			<div style="background: #fff; padding: 20px; border: 1px solid #ccd0d4; border-radius: 8px; max-width: 600px;">
+				<div id="sr-search-step">
+					<label style="font-weight: 600; display: block; margin-bottom: 8px;">Search Term:</label>
+					<input type="text" id="sr-search-term" class="regular-text" style="width: 100%; margin-bottom: 12px;" placeholder="Word to find..." />
+					<button type="button" id="sr-find-btn" class="button button-secondary">Find Occurrences</button>
+					<span id="sr-search-loading" style="display:none; margin-left:10px;">Searching...</span>
+				</div>
+				
+				<div id="sr-replace-step" style="display:none; margin-top: 20px; padding-top: 20px; border-top: 1px dashed #ccd0d4;">
+					<p style="color: #007017; font-weight: bold;" id="sr-result-text"></p>
+					
+					<label style="font-weight: 600; display: block; margin-bottom: 8px;">Replace With (Leave blank for empty space):</label>
+					<input type="text" id="sr-replace-term" class="regular-text" style="width: 100%; margin-bottom: 12px;" placeholder="Replacement text..." />
+					<button type="button" id="sr-replace-btn" class="button button-primary">Save Changes & Clear Cache</button>
+					<span id="sr-replace-loading" style="display:none; margin-left:10px;">Replacing & caching...</span>
+				</div>
+			</div>
+		</div>
+
+		<!-- Toast Notification -->
+		<div id="qa-toast" style="position: fixed; bottom: 20px; right: -300px; background: #1f2937; color: white; padding: 16px 24px; border-radius: 8px; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); transition: right 0.4s ease-out; z-index: 100000; display: flex; align-items: center; gap: 12px; font-family: sans-serif;">
+			<svg xmlns="http://www.w3.org/2000/svg" style="width:24px; height:24px; color:#10b981;" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+				<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+			</svg>
+			<span id="qa-toast-msg" style="font-weight: 500;">Success</span>
+		</div>
+
+		<script>
+		document.addEventListener('DOMContentLoaded', function() {
+			const root = '<?php echo esc_url_raw( rest_url( "qa-checklist/v1" ) ); ?>';
+			const nonce = '<?php echo wp_create_nonce( "wp_rest" ); ?>';
+			
+			const searchBtn = document.getElementById('sr-find-btn');
+			const replaceBtn = document.getElementById('sr-replace-btn');
+			const step2 = document.getElementById('sr-replace-step');
+			const toast = document.getElementById('qa-toast');
+			const toastMsg = document.getElementById('qa-toast-msg');
+			let currentSearchTerm = '';
+
+			function showToast(message) {
+				toastMsg.textContent = message;
+				toast.style.right = '20px';
+				setTimeout(() => { toast.style.right = '-300px'; }, 4000);
+			}
+
+			searchBtn.addEventListener('click', async () => {
+				const term = document.getElementById('sr-search-term').value.trim();
+				if(!term) return alert('Enter a search term');
+				
+				currentSearchTerm = term;
+				document.getElementById('sr-search-loading').style.display = 'inline';
+				searchBtn.disabled = true;
+
+				try {
+					const res = await fetch(`${root}/search?term=${encodeURIComponent(term)}`, {
+						headers: { 'X-WP-Nonce': nonce }
+					});
+					const data = await res.json();
+					
+					document.getElementById('sr-result-text').textContent = `Found ${data.count} occurrences of "${term}".`;
+					step2.style.display = 'block';
+				} catch (e) {
+					alert('Search failed.');
+				} finally {
+					document.getElementById('sr-search-loading').style.display = 'none';
+					searchBtn.disabled = false;
+				}
+			});
+
+			replaceBtn.addEventListener('click', async () => {
+				const replaceTerm = document.getElementById('sr-replace-term').value;
+				
+				document.getElementById('sr-replace-loading').style.display = 'inline';
+				replaceBtn.disabled = true;
+
+				try {
+					const res = await fetch(`${root}/replace`, {
+						method: 'POST',
+						headers: { 
+							'X-WP-Nonce': nonce,
+							'Content-Type': 'application/json' 
+						},
+						body: JSON.stringify({
+							search_term: currentSearchTerm,
+							replace_term: replaceTerm
+						})
+					});
+					const data = await res.json();
+					
+					if(data.success) {
+						showToast(data.message);
+						step2.style.display = 'none';
+						document.getElementById('sr-search-term').value = '';
+						document.getElementById('sr-replace-term').value = '';
+					} else {
+						alert('Error: ' + data.message);
+					}
+				} catch (e) {
+					alert('Replacement failed.');
+				} finally {
+					document.getElementById('sr-replace-loading').style.display = 'none';
+					replaceBtn.disabled = false;
+				}
+			});
+		});
+		</script>
 		<?php
 	}
 }
