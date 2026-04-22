@@ -417,5 +417,8 @@ class QA_Checklist_API {
 		if ( class_exists( 'Litespeed_Cache_API' ) && method_exists( 'Litespeed_Cache_API', 'purge_all' ) ) {
 			\Litespeed_Cache_API::purge_all();
 		}
+		
+		// Official Litespeed Cache purge action
+		do_action( 'litespeed_purge_all' );
 	}
 }

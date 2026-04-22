@@ -140,10 +140,16 @@ class QA_Checklist_Automation {
 
 				case 'Content validation (no dummy/AI errors)':
 					$res = $results['content_quality'];
-					if ( $res['too_many_dashes'] ) {
+					if ( $res['too_many_dashes'] || $res['has_dummy_text'] ) {
+						$reason = $res['has_dummy_text'] ? 'Dummy text found (Lorem Ipsum).' : 'Excessive hyphens detected (---).';
 						$update = array( 
 							'status' => 'fail', 
-							'comment' => 'Warning: Excessive hyphens detected (---). Action Required: Review your content for placeholder text or formatting errors.' 
+							'comment' => "Warning: {$reason} Action Required: Review your content for placeholder text or formatting errors." 
+						);
+					} else {
+						$update = array( 
+							'status' => 'pass', 
+							'comment' => 'No placeholder or AI formatting errors found in text.' 
 						);
 					}
 					break;
@@ -286,7 +292,14 @@ class QA_Checklist_Automation {
 		
 		// Check for 3 or more consecutive hyphens
 		$too_many_dashes = ( preg_match( '/-{3,}/', $clean_text ) === 1 );
-		return array( 'too_many_dashes' => $too_many_dashes );
+		
+		// Check for standard dummy text
+		$has_dummy_text = ( stripos( $clean_text, 'lorem ipsum' ) !== false || stripos( $clean_text, 'dolor sit amet' ) !== false );
+		
+		return array( 
+			'too_many_dashes' => $too_many_dashes,
+			'has_dummy_text'  => $has_dummy_text 
+		);
 	}
 
 	private function check_contact_email() {
